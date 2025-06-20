@@ -5,17 +5,23 @@ import csv
 from datetime import datetime
 
 CITAS_FILE = 'citas.csv'
+APP_TITLE = "Sistema de Gestión de Citas Médicas"
+BG_COLOR = "#F0F4F8"
+PRIMARY_COLOR = "#4A90E2"
+ACCENT_COLOR = "#4CAF50"
+DANGER_COLOR = "#E57373"
+TEXT_COLOR = "#333333"
 
 def guardar_cita(nombre, doctor_o_motivo, fecha, hora):
     with open(CITAS_FILE, 'a', newline='', encoding='utf-8') as f:
         escritor = csv.writer(f)
         escritor.writerow([nombre, doctor_o_motivo, fecha, hora])
-    messagebox.showinfo("Cita Guardada", "¡La cita ha sido agendada con éxito!")
+    messagebox.showinfo("Cita Agendada", "¡La cita ha sido agendada con éxito!")
     limpiar_campos()
 
 def limpiar_campos():
     entry_nombre.delete(0, tk.END)
-    combobox_doctor_motivo.set('') 
+    combobox_doctor_motivo.set('Selecciona o escribe el motivo...')
     entry_fecha.delete(0, tk.END)
     entry_hora.delete(0, tk.END)
 
@@ -40,12 +46,12 @@ def eliminar_cita_seleccionada(listbox_citas, ventana_citas):
 
     indice_a_eliminar = seleccion[0]
     
-    if messagebox.askyesno("Confirmar Eliminación", "¿Realmente quieres cancelar esta cita? ¡Esta acción es irreversible!"):
+    if messagebox.askyesno("Confirmar Cancelación", "¿Estás seguro de que quieres cancelar esta cita? ¡Esta acción es irreversible!"):
         citas_existentes = cargar_citas()
         if 0 <= indice_a_eliminar < len(citas_existentes):
             del citas_existentes[indice_a_eliminar]
             guardar_todas_las_citas(citas_existentes)
-            messagebox.showinfo("Cita Eliminada", "La cita ha sido cancelada satisfactoriamente.")
+            messagebox.showinfo("Cita Cancelada", "La cita ha sido cancelada satisfactoriamente.")
             ventana_citas.destroy()
             ver_citas()
         else:
@@ -54,30 +60,40 @@ def eliminar_cita_seleccionada(listbox_citas, ventana_citas):
 def ver_citas():
     ventana_citas = tk.Toplevel(ventana)
     ventana_citas.title("Tus Citas Agendadas")
-    ventana_citas.geometry("600x450")
+    ventana_citas.geometry("700x500")
     ventana_citas.resizable(True, True)
+    ventana_citas.config(bg=BG_COLOR)
 
     citas = cargar_citas()
 
     if not citas:
-        tk.Label(ventana_citas, text="¡Vaya! Parece que no tienes citas agendadas aún.", font=('Arial', 12, 'italic'), fg="gray").pack(pady=30)
+        tk.Label(ventana_citas, text="¡Vaya! Parece que no tienes citas agendadas aún.", 
+                 font=('Arial', 14, 'italic'), fg=TEXT_COLOR, bg=BG_COLOR).pack(pady=50, padx=20)
         return
 
-    frame_citas = tk.Frame(ventana_citas, bd=2, relief="ridge", padx=10, pady=10)
-    frame_citas.pack(pady=10, padx=10, fill=tk.BOTH, expand=True)
+    frame_list_container = tk.Frame(ventana_citas, bd=2, relief="groove", padx=5, pady=5, bg="white")
+    frame_list_container.pack(pady=15, padx=20, fill=tk.BOTH, expand=True)
 
-    scrollbar = ttk.Scrollbar(frame_citas, orient=tk.VERTICAL)
-    listbox_citas = tk.Listbox(frame_citas, yscrollcommand=scrollbar.set, font=('Consolas', 10), selectmode=tk.SINGLE, bd=1, relief="solid")
+    scrollbar = ttk.Scrollbar(frame_list_container, orient=tk.VERTICAL)
+    listbox_citas = tk.Listbox(frame_list_container, yscrollcommand=scrollbar.set, 
+                               font=('Consolas', 11), selectmode=tk.SINGLE, 
+                               bd=0, relief="flat", bg="white", fg=TEXT_COLOR,
+                               selectbackground=PRIMARY_COLOR, selectforeground="white",
+                               highlightbackground=PRIMARY_COLOR, highlightthickness=1)
     scrollbar.config(command=listbox_citas.yview)
 
     scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
     listbox_citas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
-    for i, cita in enumerate(citas):
-        listbox_citas.insert(tk.END, f"  {i+1}. Paciente: {cita[0]}, Motivo/Doctor: {cita[1]}, Fecha: {cita[2]}, Hora: {cita[3]}")
+    listbox_citas.insert(tk.END, f"{'Paciente':<20} {'Motivo/Doctor':<25} {'Fecha':<15} {'Hora':<10}")
+    listbox_citas.insert(tk.END, "-"*70)
     
-    tk.Button(ventana_citas, text="Cancelar Cita Seleccionada", command=lambda: eliminar_cita_seleccionada(listbox_citas, ventana_citas), 
-              bg="#FF6B6B", fg="white", font=('Arial', 10, 'bold'), relief="raised", bd=3).pack(pady=15)
+    for i, cita in enumerate(citas):
+        listbox_citas.insert(tk.END, f"{cita[0]:<20} {cita[1]:<25} {cita[2]:<15} {cita[3]:<10}")
+    
+    ttk.Button(ventana_citas, text="Cancelar Cita Seleccionada", 
+               command=lambda: eliminar_cita_seleccionada(listbox_citas, ventana_citas), 
+               style="Danger.TButton").pack(pady=15)
 
 def agendar():
     nombre = entry_nombre.get().strip()
@@ -104,16 +120,37 @@ def agendar():
     guardar_cita(nombre, doctor_o_motivo, fecha, hora)
 
 ventana = tk.Tk()
-ventana.title("Sistema de Agendamiento de Citas Médicas")
-ventana.geometry("450x450")
+ventana.title(APP_TITLE)
+ventana.geometry("500x580")
 ventana.resizable(False, False)
+ventana.config(bg=BG_COLOR)
 
 style = ttk.Style()
 style.theme_use('clam')
-style.configure("TLabel", font=('Arial', 11))
-style.configure("TEntry", font=('Arial', 10))
-style.configure("TButton", font=('Arial', 10, 'bold'), padding=8)
-style.map("TButton", background=[('active', '#0056b3')], foreground=[('active', 'white')])
+
+style.configure("TLabel", font=('Arial', 12), foreground=TEXT_COLOR, background=BG_COLOR)
+style.configure("TEntry", font=('Arial', 11), padding=5, fieldbackground="white", foreground=TEXT_COLOR)
+style.configure("TCombobox", font=('Arial', 11), padding=5, fieldbackground="white", foreground=TEXT_COLOR)
+
+style.configure("Primary.TButton", 
+                font=('Arial', 12, 'bold'), 
+                background=PRIMARY_COLOR, 
+                foreground="white", 
+                padding=(15, 10), 
+                relief="flat")
+style.map("Primary.TButton", 
+          background=[('active', '#3A7EC2')], 
+          foreground=[('active', 'white')])
+
+style.configure("Danger.TButton", 
+                font=('Arial', 11, 'bold'), 
+                background=DANGER_COLOR, 
+                foreground="white", 
+                padding=(10, 8), 
+                relief="flat")
+style.map("Danger.TButton", 
+          background=[('active', '#C25B5B')], 
+          foreground=[('active', 'white')])
 
 menubar = tk.Menu(ventana, tearoff=0)
 ventana.config(menu=menubar)
@@ -125,37 +162,43 @@ opciones_menu.add_command(label="Ver Citas Agendadas", command=ver_citas)
 opciones_menu.add_separator()
 opciones_menu.add_command(label="Salir", command=ventana.quit)
 
-tk.Label(ventana, text="Nombre del Paciente:", font=('Arial', 11, 'bold'), fg="#333333").pack(pady=(15, 2))
-entry_nombre = ttk.Entry(ventana, width=40, font=('Arial', 11))
-entry_nombre.pack(pady=5, padx=20)
+main_frame = tk.Frame(ventana, bg=BG_COLOR, padx=30, pady=20)
+main_frame.pack(expand=True, fill="both")
 
-tk.Label(ventana, text="Motivo de la Cita / Especialidad:", font=('Arial', 11, 'bold'), fg="#333333").pack(pady=(10, 2))
+tk.Label(main_frame, text="Agenda tu Próxima Cita Médica", 
+         font=('Arial', 18, 'bold'), fg=PRIMARY_COLOR, bg=BG_COLOR).grid(row=0, column=0, columnspan=2, pady=(0, 25))
+
+tk.Label(main_frame, text="Nombre del Paciente:", 
+         font=('Arial', 12, 'bold'), fg=TEXT_COLOR, bg=BG_COLOR).grid(row=1, column=0, sticky="w", pady=(10, 2))
+entry_nombre = ttk.Entry(main_frame)
+entry_nombre.grid(row=2, column=0, columnspan=2, sticky="ew", padx=0, pady=(0, 15))
+
+tk.Label(main_frame, text="Motivo de la Cita / Especialidad:", 
+         font=('Arial', 12, 'bold'), fg=TEXT_COLOR, bg=BG_COLOR).grid(row=3, column=0, sticky="w", pady=(10, 2))
 MOTIVOS_CITAS = [
-    "Consulta General",
-    "Odontología",
-    "Pediatría",
-    "Ginecología",
-    "Cardiología",
-    "Dermatología",
-    "Oftalmología",
-    "Revisión de Rutina",
-    "Seguimiento de Tratamiento",
-    "Vacunación",
-    "Urgencia Menor"
+    "Consulta General", "Odontología", "Pediatría", "Ginecología", "Cardiología",
+    "Dermatología", "Oftalmología", "Otorrinolaringología", "Traumatología",
+    "Psicología", "Nutrición", "Fisioterapia", "Revisión de Rutina",
+    "Seguimiento de Tratamiento", "Vacunación", "Urgencia Menor", "Otro"
 ]
-combobox_doctor_motivo = ttk.Combobox(ventana, values=MOTIVOS_CITAS, width=37, font=('Arial', 11))
+combobox_doctor_motivo = ttk.Combobox(main_frame, values=MOTIVOS_CITAS)
 combobox_doctor_motivo.set("Selecciona o escribe el motivo...")
-combobox_doctor_motivo.pack(pady=5, padx=20)
+combobox_doctor_motivo.grid(row=4, column=0, columnspan=2, sticky="ew", padx=0, pady=(0, 15))
 
-tk.Label(ventana, text="Fecha de la Cita (DD/MM/AAAA):", font=('Arial', 11, 'bold'), fg="#333333").pack(pady=(10, 2))
-entry_fecha = ttk.Entry(ventana, width=40, font=('Arial', 11))
-entry_fecha.pack(pady=5, padx=20)
+tk.Label(main_frame, text="Fecha de la Cita (DD/MM/AAAA):", 
+         font=('Arial', 12, 'bold'), fg=TEXT_COLOR, bg=BG_COLOR).grid(row=5, column=0, sticky="w", pady=(10, 2))
+entry_fecha = ttk.Entry(main_frame)
+entry_fecha.grid(row=6, column=0, columnspan=2, sticky="ew", padx=0, pady=(0, 15))
 
-tk.Label(ventana, text="Hora de la Cita (HH:MM):", font=('Arial', 11, 'bold'), fg="#333333").pack(pady=(10, 2))
-entry_hora = ttk.Entry(ventana, width=40, font=('Arial', 11))
-entry_hora.pack(pady=5, padx=20)
+tk.Label(main_frame, text="Hora de la Cita (HH:MM):", 
+         font=('Arial', 12, 'bold'), fg=TEXT_COLOR, bg=BG_COLOR).grid(row=7, column=0, sticky="w", pady=(10, 2))
+entry_hora = ttk.Entry(main_frame)
+entry_hora.grid(row=8, column=0, columnspan=2, sticky="ew", padx=0, pady=(0, 25))
 
-ttk.Button(ventana, text="Agendar Nueva Cita", command=agendar, style="TButton").pack(pady=20)
-ttk.Button(ventana, text="Ver Todas las Citas", command=ver_citas, style="TButton").pack(pady=5)
+ttk.Button(main_frame, text="Agendar Nueva Cita", command=agendar, style="Primary.TButton").grid(row=9, column=0, columnspan=2, pady=10, sticky="ew")
+ttk.Button(main_frame, text="Ver Todas las Citas", command=ver_citas, style="Primary.TButton").grid(row=10, column=0, columnspan=2, pady=5, sticky="ew")
+
+main_frame.grid_columnconfigure(0, weight=1)
+main_frame.grid_columnconfigure(1, weight=1)
 
 ventana.mainloop()
