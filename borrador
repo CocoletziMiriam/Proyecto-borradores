@@ -1,0 +1,76 @@
+import tkinter as tk
+from tkinter import messagebox
+import csv
+from datetime import datetime
+
+CITAS_FILE = 'citas.csv'
+
+def guardar_cita(nombre, doctor, fecha, hora):
+    with open(CITAS_FILE, 'a', newline='') as f:
+        escritor = csv.writer(f)
+        escritor.writerow([nombre, doctor, fecha, hora])
+    messagebox.showinfo("Cita guardada", "La cita ha sido agendada correctamente.")
+    limpiar_campos()
+
+def limpiar_campos():
+    entry_nombre.delete(0, tk.END)
+    entry_doctor.delete(0, tk.END)
+    entry_fecha.delete(0, tk.END)
+    entry_hora.delete(0, tk.END)
+
+def ver_citas():
+    try:
+        with open(CITAS_FILE, 'r') as f:
+            lector = csv.reader(f)
+            citas = list(lector)
+    except FileNotFoundError:
+        citas = []
+
+    ventana_citas = tk.Toplevel(ventana)
+    ventana_citas.title("Citas agendadas")
+    for i, cita in enumerate(citas):
+        tk.Label(ventana_citas, text=f"{i+1}. Nombre: {cita[0]}, Doctor: {cita[1]}, Fecha: {cita[2]}, Hora: {cita[3]}").pack()
+
+def agendar():
+    nombre = entry_nombre.get().strip()
+    doctor = entry_doctor.get().strip()
+    fecha = entry_fecha.get().strip()
+    hora = entry_hora.get().strip()
+
+    if not nombre or not doctor or not fecha or not hora:
+        messagebox.showwarning("Campos incompletos", "Por favor llena todos los campos.")
+        return
+
+    try:
+        datetime.strptime(fecha, "%d/%m/%Y")
+        datetime.strptime(hora, "%H:%M")
+    except ValueError:
+        messagebox.showerror("Formato incorrecto", "La fecha debe ser DD/MM/AAAA y la hora HH:MM")
+        return
+
+    guardar_cita(nombre, doctor, fecha, hora)
+
+ventana = tk.Tk()
+ventana.title("Agenda de Citas Hospitalarias")
+ventana.geometry("400x350")
+
+tk.Label(ventana, text="Nombre del paciente:").pack()
+entry_nombre = tk.Entry(ventana)
+entry_nombre.pack()
+
+tk.Label(ventana, text="Nombre del doctor:").pack()
+entry_doctor = tk.Entry(ventana)
+entry_doctor.pack()
+
+tk.Label(ventana, text="Fecha (DD/MM/AAAA):").pack()
+entry_fecha = tk.Entry(ventana)
+entry_fecha.pack()
+
+tk.Label(ventana, text="Hora (HH:MM):").pack()
+entry_hora = tk.Entry(ventana)
+entry_hora.pack()
+
+tk.Button(ventana, text="Agendar Cita", command=agendar, bg="lightgreen").pack(pady=10)
+tk.Button(ventana, text="Ver Citas Agendadas", command=ver_citas, bg="lightblue").pack(pady=5)
+
+ventana.mainloop()
