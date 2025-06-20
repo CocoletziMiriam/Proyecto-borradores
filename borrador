@@ -1,21 +1,21 @@
 import tkinter as tk
 from tkinter import messagebox
-from tkinter import simpledialog
+from tkinter import ttk
 import csv
 from datetime import datetime
 
 CITAS_FILE = 'citas.csv'
 
-def guardar_cita(nombre, doctor, fecha, hora):
+def guardar_cita(nombre, doctor_o_motivo, fecha, hora):
     with open(CITAS_FILE, 'a', newline='', encoding='utf-8') as f:
         escritor = csv.writer(f)
-        escritor.writerow([nombre, doctor, fecha, hora])
-    messagebox.showinfo("Cita guardada", "La cita ha sido agendada correctamente.")
+        escritor.writerow([nombre, doctor_o_motivo, fecha, hora])
+    messagebox.showinfo("Cita Guardada", "¡La cita ha sido agendada con éxito!")
     limpiar_campos()
 
 def limpiar_campos():
     entry_nombre.delete(0, tk.END)
-    entry_doctor.delete(0, tk.END)
+    combobox_doctor_motivo.set('') 
     entry_fecha.delete(0, tk.END)
     entry_hora.delete(0, tk.END)
 
@@ -35,78 +35,87 @@ def guardar_todas_las_citas(citas):
 def eliminar_cita_seleccionada(listbox_citas, ventana_citas):
     seleccion = listbox_citas.curselection()
     if not seleccion:
-        messagebox.showwarning("Ninguna selección", "Por favor, selecciona una cita para eliminar.")
+        messagebox.showwarning("Nada Seleccionado", "Por favor, elige una cita de la lista para eliminar.")
         return
 
     indice_a_eliminar = seleccion[0]
     
-    if messagebox.askyesno("Confirmar eliminación", "¿Estás seguro de que quieres eliminar esta cita?"):
+    if messagebox.askyesno("Confirmar Eliminación", "¿Realmente quieres cancelar esta cita? ¡Esta acción es irreversible!"):
         citas_existentes = cargar_citas()
         if 0 <= indice_a_eliminar < len(citas_existentes):
             del citas_existentes[indice_a_eliminar]
             guardar_todas_las_citas(citas_existentes)
-            messagebox.showinfo("Cita eliminada", "La cita ha sido eliminada correctamente.")
+            messagebox.showinfo("Cita Eliminada", "La cita ha sido cancelada satisfactoriamente.")
             ventana_citas.destroy()
             ver_citas()
         else:
-            messagebox.showerror("Error", "Índice de cita no válido.")
+            messagebox.showerror("Error Interno", "No se pudo encontrar la cita. Por favor, inténtalo de nuevo.")
 
 def ver_citas():
     ventana_citas = tk.Toplevel(ventana)
-    ventana_citas.title("Citas Agendadas")
-    ventana_citas.geometry("500x400")
+    ventana_citas.title("Tus Citas Agendadas")
+    ventana_citas.geometry("600x450")
+    ventana_citas.resizable(True, True)
 
     citas = cargar_citas()
 
     if not citas:
-        tk.Label(ventana_citas, text="No hay citas agendadas.").pack(pady=20)
+        tk.Label(ventana_citas, text="¡Vaya! Parece que no tienes citas agendadas aún.", font=('Arial', 12, 'italic'), fg="gray").pack(pady=30)
         return
 
-    frame_citas = tk.Frame(ventana_citas)
-    frame_citas.pack(pady=10, fill=tk.BOTH, expand=True)
+    frame_citas = tk.Frame(ventana_citas, bd=2, relief="ridge", padx=10, pady=10)
+    frame_citas.pack(pady=10, padx=10, fill=tk.BOTH, expand=True)
 
-    scrollbar = tk.Scrollbar(frame_citas, orient=tk.VERTICAL)
-    listbox_citas = tk.Listbox(frame_citas, yscrollcommand=scrollbar.set, width=60, height=15)
+    scrollbar = ttk.Scrollbar(frame_citas, orient=tk.VERTICAL)
+    listbox_citas = tk.Listbox(frame_citas, yscrollcommand=scrollbar.set, font=('Consolas', 10), selectmode=tk.SINGLE, bd=1, relief="solid")
     scrollbar.config(command=listbox_citas.yview)
 
     scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
     listbox_citas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
     for i, cita in enumerate(citas):
-        listbox_citas.insert(tk.END, f"{i+1}. Nombre: {cita[0]}, Doctor: {cita[1]}, Fecha: {cita[2]}, Hora: {cita[3]}")
-
-    tk.Button(ventana_citas, text="Eliminar Cita Seleccionada", command=lambda: eliminar_cita_seleccionada(listbox_citas, ventana_citas), bg="salmon").pack(pady=10)
+        listbox_citas.insert(tk.END, f"  {i+1}. Paciente: {cita[0]}, Motivo/Doctor: {cita[1]}, Fecha: {cita[2]}, Hora: {cita[3]}")
+    
+    tk.Button(ventana_citas, text="Cancelar Cita Seleccionada", command=lambda: eliminar_cita_seleccionada(listbox_citas, ventana_citas), 
+              bg="#FF6B6B", fg="white", font=('Arial', 10, 'bold'), relief="raised", bd=3).pack(pady=15)
 
 def agendar():
     nombre = entry_nombre.get().strip()
-    doctor = entry_doctor.get().strip()
+    doctor_o_motivo = combobox_doctor_motivo.get().strip()
     fecha = entry_fecha.get().strip()
     hora = entry_hora.get().strip()
 
-    if not nombre or not doctor or not fecha or not hora:
-        messagebox.showwarning("Campos Incompletos", "Por favor, llena todos los campos.")
+    if not nombre or not doctor_o_motivo or not fecha or not hora:
+        messagebox.showwarning("Campos Requeridos", "¡Ups! Por favor, asegúrate de llenar todos los campos para agendar tu cita.")
         return
 
     try:
         datetime.strptime(fecha, "%d/%m/%Y")
     except ValueError:
-        messagebox.showerror("Formato de Fecha Incorrecto", "La fecha debe estar en formato DD/MM/AAAA (ej. 31/12/2023).")
+        messagebox.showerror("Fecha Inválida", "El formato de la fecha es incorrecto. Usa DD/MM/AAAA (ej. 31/12/2025).")
         return
 
     try:
         datetime.strptime(hora, "%H:%M")
     except ValueError:
-        messagebox.showerror("Formato de Hora Incorrecto", "La hora debe estar en formato HH:MM (ej. 14:30).")
+        messagebox.showerror("Hora Inválida", "El formato de la hora es incorrecto. Usa HH:MM (ej. 14:30).")
         return
 
-    guardar_cita(nombre, doctor, fecha, hora)
+    guardar_cita(nombre, doctor_o_motivo, fecha, hora)
 
 ventana = tk.Tk()
-ventana.title("Agenda de Citas Hospitalarias")
-ventana.geometry("400x380")
+ventana.title("Sistema de Agendamiento de Citas Médicas")
+ventana.geometry("450x450")
 ventana.resizable(False, False)
 
-menubar = tk.Menu(ventana)
+style = ttk.Style()
+style.theme_use('clam')
+style.configure("TLabel", font=('Arial', 11))
+style.configure("TEntry", font=('Arial', 10))
+style.configure("TButton", font=('Arial', 10, 'bold'), padding=8)
+style.map("TButton", background=[('active', '#0056b3')], foreground=[('active', 'white')])
+
+menubar = tk.Menu(ventana, tearoff=0)
 ventana.config(menu=menubar)
 
 opciones_menu = tk.Menu(menubar, tearoff=0)
@@ -116,23 +125,37 @@ opciones_menu.add_command(label="Ver Citas Agendadas", command=ver_citas)
 opciones_menu.add_separator()
 opciones_menu.add_command(label="Salir", command=ventana.quit)
 
-tk.Label(ventana, text="Nombre del Paciente:", font=('Arial', 10, 'bold')).pack(pady=(10,0))
-entry_nombre = tk.Entry(ventana, width=30, bd=2, relief="groove")
-entry_nombre.pack(pady=5)
+tk.Label(ventana, text="Nombre del Paciente:", font=('Arial', 11, 'bold'), fg="#333333").pack(pady=(15, 2))
+entry_nombre = ttk.Entry(ventana, width=40, font=('Arial', 11))
+entry_nombre.pack(pady=5, padx=20)
 
-tk.Label(ventana, text="Nombre del Doctor:", font=('Arial', 10, 'bold')).pack(pady=(5,0))
-entry_doctor = tk.Entry(ventana, width=30, bd=2, relief="groove")
-entry_doctor.pack(pady=5)
+tk.Label(ventana, text="Motivo de la Cita / Especialidad:", font=('Arial', 11, 'bold'), fg="#333333").pack(pady=(10, 2))
+MOTIVOS_CITAS = [
+    "Consulta General",
+    "Odontología",
+    "Pediatría",
+    "Ginecología",
+    "Cardiología",
+    "Dermatología",
+    "Oftalmología",
+    "Revisión de Rutina",
+    "Seguimiento de Tratamiento",
+    "Vacunación",
+    "Urgencia Menor"
+]
+combobox_doctor_motivo = ttk.Combobox(ventana, values=MOTIVOS_CITAS, width=37, font=('Arial', 11))
+combobox_doctor_motivo.set("Selecciona o escribe el motivo...")
+combobox_doctor_motivo.pack(pady=5, padx=20)
 
-tk.Label(ventana, text="Fecha (DD/MM/AAAA):", font=('Arial', 10, 'bold')).pack(pady=(5,0))
-entry_fecha = tk.Entry(ventana, width=30, bd=2, relief="groove")
-entry_fecha.pack(pady=5)
+tk.Label(ventana, text="Fecha de la Cita (DD/MM/AAAA):", font=('Arial', 11, 'bold'), fg="#333333").pack(pady=(10, 2))
+entry_fecha = ttk.Entry(ventana, width=40, font=('Arial', 11))
+entry_fecha.pack(pady=5, padx=20)
 
-tk.Label(ventana, text="Hora (HH:MM):", font=('Arial', 10, 'bold')).pack(pady=(5,0))
-entry_hora = tk.Entry(ventana, width=30, bd=2, relief="groove")
-entry_hora.pack(pady=5)
+tk.Label(ventana, text="Hora de la Cita (HH:MM):", font=('Arial', 11, 'bold'), fg="#333333").pack(pady=(10, 2))
+entry_hora = ttk.Entry(ventana, width=40, font=('Arial', 11))
+entry_hora.pack(pady=5, padx=20)
 
-tk.Button(ventana, text="Agendar Cita", command=agendar, bg="lightgreen", fg="black", font=('Arial', 10, 'bold'), relief="raised", bd=3).pack(pady=15)
-tk.Button(ventana, text="Ver Citas Agendadas", command=ver_citas, bg="lightblue", fg="black", font=('Arial', 10, 'bold'), relief="raised", bd=3).pack(pady=5)
+ttk.Button(ventana, text="Agendar Nueva Cita", command=agendar, style="TButton").pack(pady=20)
+ttk.Button(ventana, text="Ver Todas las Citas", command=ver_citas, style="TButton").pack(pady=5)
 
 ventana.mainloop()
