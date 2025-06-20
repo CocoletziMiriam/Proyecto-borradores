@@ -6,94 +6,136 @@ import csv
 from datetime import datetime
 
 CITAS_FILE = 'citas.csv'
-APP_TITLE = "Sistema de Gestión de Citas Médicas"
+APP_TITLE = "Sistema de Gestión de Citas Médicas Avanzado"
+WINDOW_WIDTH = 550
+WINDOW_HEIGHT = 650
+MAIN_BG_COLOR = '#EBF4F8'
 
 def guardar_cita(nombre, doctor_o_motivo, fecha, hora):
-    with open(CITAS_FILE, 'a', newline='', encoding='utf-8') as f:
-        escritor = csv.writer(f)
-        escritor.writerow([nombre, doctor_o_motivo, fecha, hora])
-    messagebox.showinfo("Cita Agendada", "¡La cita ha sido agendada con éxito!")
-    limpiar_campos()
+    try:
+        with open(CITAS_FILE, 'a', newline='', encoding='utf-8') as f:
+            writer = csv.writer(f)
+            writer.writerow([nombre, doctor_o_motivo, fecha, hora])
+        messagebox.showinfo("Cita Agendada", "¡La cita ha sido agendada con éxito!")
+        limpiar_campos()
+    except IOError:
+        messagebox.showerror("Error de Archivo", "No se pudo guardar la cita. Verifica los permisos del archivo.")
 
 def limpiar_campos():
     entry_nombre.delete(0, tk.END)
     combobox_doctor_motivo.set('Selecciona o escribe el motivo...')
     entry_fecha.delete(0, tk.END)
+    entry_fecha.insert(0, 'DD/MM/AAAA')
     entry_hora.delete(0, tk.END)
+    entry_hora.insert(0, 'HH:MM')
+    entry_nombre.focus_set()
 
 def cargar_citas():
     try:
         with open(CITAS_FILE, 'r', encoding='utf-8') as f:
-            lector = csv.reader(f)
-            return list(lector)
+            reader = csv.reader(f)
+            return list(reader)
     except FileNotFoundError:
+        open(CITAS_FILE, 'a', encoding='utf-8').close()
+        return []
+    except Exception as e:
+        messagebox.showerror("Error de Carga", f"No se pudieron cargar las citas: {e}")
         return []
 
 def guardar_todas_las_citas(citas):
-    with open(CITAS_FILE, 'w', newline='', encoding='utf-8') as f:
-        escritor = csv.writer(f)
-        escritor.writerows(citas)
+    try:
+        with open(CITAS_FILE, 'w', newline='', encoding='utf-8') as f:
+            writer = csv.writer(f)
+            writer.writerows(citas)
+    except IOError:
+        messagebox.showerror("Error de Archivo", "No se pudieron guardar los cambios en las citas.")
 
-def eliminar_cita_seleccionada(listbox_citas, ventana_citas):
-    seleccion = listbox_citas.curselection()
-    if not seleccion:
-        messagebox.showwarning("Nada Seleccionado", "Por favor, elige una cita de la lista para eliminar.")
+def eliminar_cita_seleccionada(treeview_citas, window_citas):
+    selected_id = treeview_citas.selection()
+    if not selected_id:
+        messagebox.showwarning("Nada Seleccionado", "Por favor, elige una cita de la tabla para eliminar.")
         return
 
-    indice_a_eliminar = seleccion[0]
-    
+    item = treeview_citas.item(selected_id[0])
+    selected_appointment_values = item['values']
+
     if messagebox.askyesno("Confirmar Cancelación", "¿Estás seguro de que quieres cancelar esta cita? ¡Esta acción es irreversible!"):
-        citas_existentes = cargar_citas()
-        if 0 <= indice_a_eliminar < len(citas_existentes):
-            del citas_existentes[indice_a_eliminar]
-            guardar_todas_las_citas(citas_existentes)
+        existing_citas = cargar_citas()
+        
+        appointment_found = False
+        for i, cita in enumerate(existing_citas):
+            if cita == selected_appointment_values:
+                del existing_citas[i]
+                appointment_found = True
+                break
+        
+        if appointment_found:
+            guardar_todas_las_citas(existing_citas)
             messagebox.showinfo("Cita Cancelada", "La cita ha sido cancelada satisfactoriamente.")
-            ventana_citas.destroy()
+            window_citas.destroy()
             ver_citas()
         else:
-            messagebox.showerror("Error Interno", "No se pudo encontrar la cita. Por favor, inténtalo de nuevo.")
+            messagebox.showerror("Error", "La cita seleccionada no se encontró. Refresca la lista e inténtalo de nuevo.")
 
 def ver_citas():
-    ventana_citas = tk.Toplevel(ventana)
-    ventana_citas.title("Tus Citas Agendadas")
-    ventana_citas.geometry("700x500")
-    ventana_citas.resizable(True, True)
+    window_citas = tk.Toplevel(root)
+    window_citas.title("Tus Citas Agendadas")
+    window_citas.geometry("850x550")
+    window_citas.resizable(True, True)
+    window_citas.grab_set()
 
     citas = cargar_citas()
 
     if not citas:
-        tk.Label(ventana_citas, text="¡Vaya! Parece que no tienes citas agendadas aún.", 
-                 font=('Arial', 14, 'italic'), fg="gray").pack(pady=50, padx=20)
+        ttk.Label(window_citas, text="¡Vaya! Parece que no tienes citas agendadas aún.", 
+                 font=('Arial', 16, 'italic'), bootstyle="info").pack(pady=50, padx=20)
         return
 
-    frame_list_container = ttk.Frame(ventana_citas, bootstyle="light", padding=5)
-    frame_list_container.pack(pady=15, padx=20, fill=BOTH, expand=TRUE)
+    tree_frame_container = ttk.Frame(window_citas, bootstyle="light", padding=10)
+    tree_frame_container.pack(pady=15, padx=20, fill=BOTH, expand=TRUE)
 
-    scrollbar = ttk.Scrollbar(frame_list_container, orient=VERTICAL)
-    listbox_citas = tk.Listbox(frame_list_container, yscrollcommand=scrollbar.set, 
-                               font=('Consolas', 11), selectmode=SINGLE, 
-                               bd=1, relief="solid",
-                               selectbackground=PRIMARY, selectforeground="white")
-    scrollbar.config(command=listbox_citas.yview)
+    columns = ("Paciente", "Motivo/Doctor", "Fecha", "Hora")
+    treeview_citas = ttk.Treeview(tree_frame_container, columns=columns, show="headings", 
+                                  bootstyle="primary", selectmode="browse")
 
-    scrollbar.pack(side=RIGHT, fill=Y)
-    listbox_citas.pack(side=LEFT, fill=BOTH, expand=TRUE)
+    treeview_citas.heading("Paciente", text="Paciente", anchor=W)
+    treeview_citas.heading("Motivo/Doctor", text="Motivo / Doctor", anchor=W)
+    treeview_citas.heading("Fecha", text="Fecha", anchor=W)
+    treeview_citas.heading("Hora", text="Hora", anchor=W)
 
-    listbox_citas.insert(END, f"{'Paciente':<20} {'Motivo/Doctor':<25} {'Fecha':<15} {'Hora':<10}")
-    listbox_citas.insert(END, "-"*70)
+    treeview_citas.column("Paciente", width=180, stretch=NO)
+    treeview_citas.column("Motivo/Doctor", width=220, stretch=NO)
+    treeview_citas.column("Fecha", width=120, stretch=NO)
+    treeview_citas.column("Hora", width=100, stretch=NO)
+
+    vsb = ttk.Scrollbar(tree_frame_container, orient="vertical", command=treeview_citas.yview)
+    hsb = ttk.Scrollbar(tree_frame_container, orient="horizontal", command=treeview_citas.xview)
+    treeview_citas.configure(yscrollcommand=vsb.set, xscrollcommand=hsb.set)
+
+    vsb.pack(side="right", fill="y")
+    hsb.pack(side="bottom", fill="x")
+    treeview_citas.pack(fill=BOTH, expand=TRUE)
+
+    for cita in citas:
+        treeview_citas.insert("", END, values=cita)
     
-    for i, cita in enumerate(citas):
-        listbox_citas.insert(END, f"{cita[0]:<20} {cita[1]:<25} {cita[2]:<15} {cita[3]:<10}")
-    
-    ttk.Button(ventana_citas, text="Cancelar Cita Seleccionada", 
-               command=lambda: eliminar_cita_seleccionada(listbox_citas, ventana_citas), 
-               bootstyle="danger").pack(pady=15)
+    ttk.Button(window_citas, text="Cancelar Cita Seleccionada", 
+               command=lambda: eliminar_cita_seleccionada(treeview_citas, window_citas), 
+               bootstyle="danger-outline").pack(pady=15)
+
+    window_citas.transient(root)
+    window_citas.wait_window()
 
 def agendar():
     nombre = entry_nombre.get().strip()
     doctor_o_motivo = combobox_doctor_motivo.get().strip()
     fecha = entry_fecha.get().strip()
     hora = entry_hora.get().strip()
+
+    if fecha == 'DD/MM/AAAA':
+        fecha = ''
+    if hora == 'HH:MM':
+        hora = ''
 
     if not nombre or not doctor_o_motivo or not fecha or not hora:
         messagebox.showwarning("Campos Requeridos", "¡Ups! Por favor, asegúrate de llenar todos los campos para agendar tu cita.")
@@ -113,54 +155,77 @@ def agendar():
 
     guardar_cita(nombre, doctor_o_motivo, fecha, hora)
 
-ventana = ttk.Window(themename='flatly')
-ventana.title(APP_TITLE)
-ventana.geometry("500x600")
-ventana.resizable(False, False)
+def on_entry_focus_in(event):
+    current_text = event.widget.get()
+    if current_text == 'DD/MM/AAAA' or current_text == 'HH:MM':
+        event.widget.delete(0, tk.END)
+        event.widget.configure(bootstyle="")
+    event.widget.configure(bootstyle="primary")
 
-menubar = tk.Menu(ventana, tearoff=0)
-ventana.config(menu=menubar)
+def on_entry_focus_out(event):
+    if not event.widget.get():
+        if event.widget == entry_fecha:
+            event.widget.insert(0, 'DD/MM/AAAA')
+        elif event.widget == entry_hora:
+            event.widget.insert(0, 'HH:MM')
+        event.widget.configure(bootstyle="info")
 
-opciones_menu = tk.Menu(menubar, tearoff=0)
-menubar.add_cascade(label="Opciones", menu=opciones_menu)
-opciones_menu.add_command(label="Agendar Nueva Cita", command=lambda: ventana.lift())
-opciones_menu.add_command(label="Ver Citas Agendadas", command=ver_citas)
-opciones_menu.add_separator()
-opciones_menu.add_command(label="Salir", command=ventana.quit)
+root = ttk.Window(themename='flatly')
+root.title(APP_TITLE)
+root.geometry(f"{WINDOW_WIDTH}x{WINDOW_HEIGHT}")
+root.resizable(False, False)
+root.configure(bg=MAIN_BG_COLOR)
 
-main_frame = ttk.Frame(ventana, padding=30)
-main_frame.pack(expand=TRUE, fill=BOTH)
+menubar = tk.Menu(root, tearoff=0)
+root.config(menu=menubar)
 
-ttk.Label(main_frame, text="Agenda tu Próxima Cita Médica", 
-         font=('Arial', 20, 'bold')).grid(row=0, column=0, columnspan=2, pady=(0, 25))
+options_menu = tk.Menu(menubar, tearoff=0, font=('Arial', 10))
+menubar.add_cascade(label="Opciones", menu=options_menu)
+options_menu.add_command(label="Agendar Nueva Cita", command=lambda: root.lift())
+options_menu.add_command(label="Ver Citas Agendadas", command=ver_citas)
+options_menu.add_separator()
+options_menu.add_command(label="Salir", command=root.quit)
 
-ttk.Label(main_frame, text="Nombre del Paciente:").grid(row=1, column=0, sticky="w", pady=(10, 2))
-entry_nombre = ttk.Entry(main_frame)
-entry_nombre.grid(row=2, column=0, columnspan=2, sticky="ew", padx=0, pady=(0, 15))
+main_frame = ttk.Frame(root, padding=40, bootstyle="light")
+main_frame.pack(expand=TRUE, fill=BOTH, padx=20, pady=20)
 
-ttk.Label(main_frame, text="Motivo de la Cita / Especialidad:").grid(row=3, column=0, sticky="w", pady=(10, 2))
+ttk.Label(main_frame, text="Sistema de Agendamiento Médico", 
+         font=('Arial', 24, 'bold'), bootstyle="primary").grid(row=0, column=0, columnspan=2, pady=(0, 35))
+
+ttk.Label(main_frame, text="Nombre del Paciente:", font=('Arial', 12, 'bold')).grid(row=1, column=0, sticky="w", pady=(15, 5))
+entry_nombre = ttk.Entry(main_frame, font=('Arial', 12), bootstyle="primary")
+entry_nombre.grid(row=2, column=0, columnspan=2, sticky="ew", padx=0, pady=(0, 20))
+entry_nombre.focus_set()
+
+ttk.Label(main_frame, text="Motivo de la Cita / Especialidad:", font=('Arial', 12, 'bold')).grid(row=3, column=0, sticky="w", pady=(15, 5))
 MOTIVOS_CITAS = [
     "Consulta General", "Odontología", "Pediatría", "Ginecología", "Cardiología",
     "Dermatología", "Oftalmología", "Otorrinolaringología", "Traumatología",
     "Psicología", "Nutrición", "Fisioterapia", "Revisión de Rutina",
     "Seguimiento de Tratamiento", "Vacunación", "Urgencia Menor", "Otro"
 ]
-combobox_doctor_motivo = ttk.Combobox(main_frame, values=MOTIVOS_CITAS)
+combobox_doctor_motivo = ttk.Combobox(main_frame, values=MOTIVOS_CITAS, font=('Arial', 12), bootstyle="primary")
 combobox_doctor_motivo.set("Selecciona o escribe el motivo...")
-combobox_doctor_motivo.grid(row=4, column=0, columnspan=2, sticky="ew", padx=0, pady=(0, 15))
+combobox_doctor_motivo.grid(row=4, column=0, columnspan=2, sticky="ew", padx=0, pady=(0, 20))
 
-ttk.Label(main_frame, text="Fecha de la Cita (DD/MM/AAAA):").grid(row=5, column=0, sticky="w", pady=(10, 2))
-entry_fecha = ttk.Entry(main_frame)
-entry_fecha.grid(row=6, column=0, columnspan=2, sticky="ew", padx=0, pady=(0, 15))
+ttk.Label(main_frame, text="Fecha de la Cita (DD/MM/AAAA):", font=('Arial', 12, 'bold')).grid(row=5, column=0, sticky="w", pady=(15, 5))
+entry_fecha = ttk.Entry(main_frame, font=('Arial', 12), bootstyle="info")
+entry_fecha.insert(0, 'DD/MM/AAAA')
+entry_fecha.bind("<FocusIn>", on_entry_focus_in)
+entry_fecha.bind("<FocusOut>", on_entry_focus_out)
+entry_fecha.grid(row=6, column=0, columnspan=2, sticky="ew", padx=0, pady=(0, 20))
 
-ttk.Label(main_frame, text="Hora de la Cita (HH:MM):").grid(row=7, column=0, sticky="w", pady=(10, 2))
-entry_hora = ttk.Entry(main_frame)
-entry_hora.grid(row=8, column=0, columnspan=2, sticky="ew", padx=0, pady=(0, 25))
+ttk.Label(main_frame, text="Hora de la Cita (HH:MM):", font=('Arial', 12, 'bold')).grid(row=7, column=0, sticky="w", pady=(15, 5))
+entry_hora = ttk.Entry(main_frame, font=('Arial', 12), bootstyle="info")
+entry_hora.insert(0, 'HH:MM')
+entry_hora.bind("<FocusIn>", on_entry_focus_in)
+entry_hora.bind("<FocusOut>", on_entry_focus_out)
+entry_hora.grid(row=8, column=0, columnspan=2, sticky="ew", padx=0, pady=(0, 30))
 
-ttk.Button(main_frame, text="Agendar Nueva Cita", command=agendar, bootstyle="primary").grid(row=9, column=0, columnspan=2, pady=10, sticky="ew")
-ttk.Button(main_frame, text="Ver Todas las Citas", command=ver_citas, bootstyle="info").grid(row=10, column=0, columnspan=2, pady=5, sticky="ew")
+ttk.Button(main_frame, text="Agendar Nueva Cita", command=agendar, bootstyle="success").grid(row=9, column=0, columnspan=2, pady=(10, 5), sticky="ew")
+ttk.Button(main_frame, text="Ver Todas las Citas", command=ver_citas, bootstyle="primary-outline").grid(row=10, column=0, columnspan=2, pady=5, sticky="ew")
 
 main_frame.grid_columnconfigure(0, weight=1)
 main_frame.grid_columnconfigure(1, weight=1)
 
-ventana.mainloop()
+root.mainloop()
